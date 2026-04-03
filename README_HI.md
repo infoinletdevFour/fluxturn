@@ -1,4 +1,10 @@
 <p align="center">
+  <a href="https://fluxturn.com">
+    <img src="frontend/public/fluxturn_1.png" alt="FluxTurn" width="600">
+  </a>
+</p>
+
+<p align="center">
   <h1 align="center">FluxTurn</h1>
   <p align="center">
     <strong>ओपन-सोर्स AI-संचालित वर्कफ़्लो ऑटोमेशन प्लेटफ़ॉर्म</strong>
