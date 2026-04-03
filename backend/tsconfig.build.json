@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.spec.ts",
+    "**/__tests__/**",
+    "test",
+    "src/modules/apps/ui/react-native/**/*.tsx",
+    "generated-app-structure"
+  ]
+}
