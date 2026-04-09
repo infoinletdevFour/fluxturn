@@ -11,7 +11,6 @@ import { TriggerManagerService } from './services/trigger-manager.service';
 import { TriggerType } from './interfaces/trigger.interface';
 import { AIWorkflowGeneratorService } from './services/ai-workflow-generator.service';
 import { IntentDetectionService } from './services/intent-detection.service';
-import { WorkflowUsageService } from '../../workflows/workflow-usage.service';
 // compareConnectorFields removed - seeding now done via npm run seed:connector
 
 @Injectable()
@@ -29,7 +28,6 @@ export class WorkflowService implements OnModuleInit, OnModuleDestroy {
     private triggerManager: TriggerManagerService,
     private aiWorkflowGenerator: AIWorkflowGeneratorService,
     private intentDetection: IntentDetectionService,
-    private workflowUsageService: WorkflowUsageService,
   ) {}
 
   async onModuleInit() {
@@ -345,11 +343,6 @@ export class WorkflowService implements OnModuleInit, OnModuleDestroy {
       }
 
       const workflowRow = workflowResult.rows[0];
-
-      // Check and track workflow execution usage limits
-      if (workflowRow.organization_id) {
-        await this.workflowUsageService.trackWorkflowExecution(workflowRow.organization_id);
-      }
 
       // Parse workflow canvas (nodes and edges)
       const canvas = workflowRow.canvas || { nodes: [], edges: [] };
@@ -982,27 +975,6 @@ export class WorkflowService implements OnModuleInit, OnModuleDestroy {
         // Handle workflow generation (create_workflow or modify_workflow)
         if (intentResult.suggestedAction === 'generate_workflow' ||
             intentResult.suggestedAction === 'fetch_workflow_and_modify') {
-
-          // ✅ Check AI workflow generation limits before proceeding
-          this.logger.log(`🔍 Checking limits for organizationId: ${params.organizationId}`);
-
-          if (params.organizationId) {
-            try {
-              this.logger.log(`✅ organizationId found, calling trackWorkflowGeneration...`);
-              await this.workflowUsageService.trackWorkflowGeneration(params.organizationId);
-              this.logger.log(`✅ Limit check passed`);
-            } catch (error) {
-              this.logger.warn(`❌ AI workflow generation blocked: ${error.message}`);
-              return {
-                success: false,
-                error: error.message,
-                limitExceeded: true,
-                responseType: 'limit_exceeded',
-              };
-            }
-          } else {
-            this.logger.warn(`⚠️  No organizationId provided - SKIPPING LIMIT CHECK!`);
-          }
 
           const aiResult = await this.aiWorkflowGenerator.generateWorkflowFromPrompt(
             cleanPrompt,
