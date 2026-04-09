@@ -58,7 +58,6 @@ import { TriggerManagerService } from './services/trigger-manager.service';
 import { ScheduleTriggerService } from './services/triggers/schedule-trigger.service';
 import { AIWorkflowGeneratorService } from './services/ai-workflow-generator.service';
 import { NodeTypeValidatorService } from './services/node-type-validator.service';
-import { WorkflowUsageService } from '../../workflows/workflow-usage.service';
 // SEEDER SERVICES - Disabled, now run manually via npm run seed
 // import { QdrantSeederService } from './services/qdrant-seeder.service';
 // import { DynamicConnectorSeederService } from './services/dynamic-connector-seeder.service';
@@ -232,7 +231,6 @@ import { OrchestratedGeneratorService } from './services/orchestrated-generator.
     // AI workflow generation services
     AIWorkflowGeneratorService,
     NodeTypeValidatorService, // Validates AI-generated nodes against database
-    WorkflowUsageService, // Tracks and enforces AI workflow generation limits
     ConversationMemoryService, // Maintains conversation history for AI context
     SimpleMemoryService, // Provides in-memory conversation storage for AI agents
     RedisMemoryService, // Provides Redis-backed persistent conversation storage for AI agents
@@ -255,6 +253,6 @@ import { OrchestratedGeneratorService } from './services/orchestrated-generator.
     // NOTE: ConnectorAnalyzerService is still used by src/scripts/analyze-connectors.ts
     // It's loaded via AppModule when running: npm run analyze-connectors
   ],
-  exports: [WorkflowService, TemplateService, WorkflowExecutionEngine, TriggerManagerService, WorkflowUsageService, NodesModule]
+  exports: [WorkflowService, TemplateService, WorkflowExecutionEngine, TriggerManagerService, NodesModule]
 })
 export class WorkflowModule {}

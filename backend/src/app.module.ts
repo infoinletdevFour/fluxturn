@@ -23,7 +23,6 @@ import { SQSModule } from './modules/sqs/sqs.module';
 import { EventsModule } from './events/events.module';
 import { QdrantModule } from './modules/qdrant/qdrant.module';
 import { DatabaseBrowserModule } from './modules/database-browser/database-browser.module';
-import { StripeModule } from './modules/stripe/stripe.module';
 import { BlogModule } from './modules/blog/blog.module';
 
 @Module({
@@ -60,7 +59,6 @@ import { BlogModule } from './modules/blog/blog.module';
     SQSModule,
     EventsModule,
     DatabaseBrowserModule,
-    StripeModule,
     BlogModule,
   ],
   controllers: [HealthController],

@@ -18,24 +18,10 @@ async function bootstrap() {
 
     const configService = app.get(ConfigService);
 
-    // Configure raw body capture for Stripe webhooks (MUST BE BEFORE other body parsers)
-    console.log("Setting up raw body capture for Stripe webhooks...");
-    app.use(
-      bodyParser.json({
-        limit: "500mb",
-        verify: (req: any, res, buf) => {
-          const url = req.originalUrl || req.url;
-          // Capture raw body for Stripe webhook endpoints
-          if (
-            url === "/api/v1/stripe/webhook" ||
-            url.includes("/stripe/webhook")
-          ) {
-            req.rawBody = buf;
-            console.log(`Raw body captured for webhook: ${url}`);
-          }
-        },
-      })
-    );
+    // JSON body parser with 500mb limit. Connector webhooks that need a raw
+    // body for signature verification rely on NestJS's global `rawBody: true`
+    // option set in NestFactory.create above.
+    app.use(bodyParser.json({ limit: "500mb" }));
 
     app.use(
       express.urlencoded({

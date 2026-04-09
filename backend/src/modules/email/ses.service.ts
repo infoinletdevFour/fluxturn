@@ -1,4 +1,4 @@
-import { Injectable, Logger, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SESClient, SendEmailCommand, SendTemplatedEmailCommand, SESClientConfig } from '@aws-sdk/client-ses';
 import { PlatformService } from '../database';
@@ -74,14 +74,6 @@ export class SESService {
     appId?: string
   ): Promise<SESEmailResponse> {
     try {
-      // Check project or app email quota first (skip for system emails)
-      if (projectId || appId) {
-        const hasQuota = await this.checkEmailQuota(projectId, appId);
-        if (!hasQuota) {
-          throw new BadRequestException('Monthly email quota exceeded');
-        }
-      }
-
       const from = options.from || this.defaultFrom;
       const toAddresses = this.normalizeAddresses(options.to);
       const ccAddresses = options.cc ? this.normalizeAddresses(options.cc) : undefined;
@@ -195,14 +187,6 @@ export class SESService {
     appId?: string
   ): Promise<SESEmailResponse> {
     try {
-      // Check project or app email quota first
-      if (projectId || appId) {
-        const hasQuota = await this.checkEmailQuota(projectId, appId);
-        if (!hasQuota) {
-          throw new BadRequestException('Monthly email quota exceeded');
-        }
-      }
-
       const from = options.from || this.defaultFrom;
       const toAddresses = this.normalizeAddresses(options.to);
       const ccAddresses = options.cc ? this.normalizeAddresses(options.cc) : undefined;
@@ -293,13 +277,6 @@ export class SESService {
         error: error.message,
       };
     }
-  }
-
-  /**
-   * Check email quota before sending
-   */
-  async checkQuota(projectId?: string, appId?: string): Promise<boolean> {
-    return this.checkEmailQuota(projectId, appId);
   }
 
   /**
@@ -424,122 +401,6 @@ export class SESService {
       ),
       configurationSet: this.configurationSet,
     };
-  }
-
-  /**
-   * Check email quota before sending (for both project and app level)
-   */
-  private async checkEmailQuota(projectId?: string, appId?: string): Promise<boolean> {
-    try {
-      let organizationId: string | null = null;
-
-      // Get organization ID from project or app
-      if (appId) {
-        const appResult = await this.platformService.query(
-          `SELECT a.id, a.project_id, p.organization_id 
-           FROM apps a 
-           JOIN projects p ON a.project_id = p.id 
-           WHERE a.id = $1`,
-          [appId]
-        );
-        
-        if (!appResult.rows || appResult.rows.length === 0) {
-          return false;
-        }
-        
-        organizationId = appResult.rows[0].organization_id;
-        projectId = appResult.rows[0].project_id; // Set projectId for logging
-      } else if (projectId) {
-        const projectResult = await this.platformService.query(
-          'SELECT id, organization_id FROM projects WHERE id = $1',
-          [projectId]
-        );
-
-        if (!projectResult.rows || projectResult.rows.length === 0) {
-          return false;
-        }
-
-        organizationId = projectResult.rows[0].organization_id;
-      } else {
-        // No project or app ID, this is a platform email
-        return true;
-      }
-
-      // Get organization billing subscription for real quota limits
-      const billingResult = await this.platformService.query(
-        `SELECT bs.email_quota_monthly, bs.plan
-         FROM organizations o
-         LEFT JOIN billing_subscriptions bs ON o.id = bs.organization_id
-         WHERE o.id = $1`,
-        [organizationId]
-      );
-
-      let monthlyLimit = 100; // Default for free tier
-
-      if (billingResult.rows && billingResult.rows.length > 0) {
-        const subscription = billingResult.rows[0];
-        if (subscription.email_quota_monthly) {
-          monthlyLimit = subscription.email_quota_monthly;
-        } else {
-          // Set limits based on plan
-          switch (subscription.plan) {
-            case 'starter':
-              monthlyLimit = 1000;
-              break;
-            case 'professional':
-              monthlyLimit = 10000;
-              break;
-            case 'enterprise':
-              monthlyLimit = 100000;
-              break;
-            default:
-              monthlyLimit = 100; // Free tier
-          }
-        }
-      }
-
-      // Check current usage across all projects and apps in the organization
-      const now = new Date();
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-
-      // Get all projects for this organization
-      const projectsResult = await this.platformService.query(
-        'SELECT id FROM projects WHERE organization_id = $1',
-        [organizationId]
-      );
-      
-      const projectIds = projectsResult.rows.map(p => p.id);
-      
-      if (projectIds.length === 0) {
-        return true; // No projects, allow sending
-      }
-
-      // Count emails sent this month for all projects and apps in the organization
-      const usageResult = await this.platformService.query(
-        `SELECT COUNT(*) as count FROM email_logs 
-         WHERE (project_id = ANY($1::uuid[]) OR 
-                app_id IN (SELECT id FROM apps WHERE project_id = ANY($1::uuid[])))
-         AND created_at >= $2`,
-        [projectIds, startOfMonth]
-      );
-
-      const currentUsage = parseInt(usageResult.rows[0]?.count || '0');
-
-      if (currentUsage >= monthlyLimit) {
-        this.logger.warn(
-          `Organization ${organizationId} exceeded email quota: ${currentUsage}/${monthlyLimit}`,
-        );
-        return false;
-      }
-
-      return true;
-    } catch (error) {
-      this.logger.error(
-        `Failed to check email quota: ${error.message}`,
-      );
-      // Return true to allow sending on error (graceful degradation)
-      return true;
-    }
   }
 
   /**
